@@ -1,6 +1,6 @@
-import { CORRIDORS, META } from './data.js?v=1.1.1';
-import { settlement, yen, amountOptions } from './calculator.js?v=1.1.1';
-import { mountStationPicker, resolveStation } from './station-picker.js?v=1.1.1';
+import { CORRIDORS, META } from './data.js?v=1.2.0';
+import { settlement, yen, amountOptions, stationChoices } from './calculator.js?v=1.2.0';
+import { mountStationPicker, resolveStation } from './station-picker.js?v=1.2.0';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const types = [['none','整理券・乗車券なし'],['amount','金額式（エド券）'],['section','区間の乗越']];
@@ -25,9 +25,10 @@ export function renderFareScreen(main,state,{routeDescription,onSave,onNext}) {
   const clearResult = () => {
     state.result = null; state.dirty = true; state.error = '';
     const error = main.querySelector('#form-error'); if(error)error.hidden = true;
+    main.querySelector('#result-status').textContent='';
     paintResult(); onSave();
   };
-  const set = (id,value) => { state[id] = value; clearResult(); };
+  const set = (id,value) => { state[id] = value; clearResult();if(id==='ticketFrom' && state.type==='amount')paintAmountChoices(); };
   main.querySelectorAll('[data-person]').forEach(button=>button.addEventListener('click',()=>{
     if(state.person===button.dataset.person)return;
     state.person=button.dataset.person;state.result=null;state.dirty=true;state.error='';onSave();
@@ -44,27 +45,27 @@ export function renderFareScreen(main,state,{routeDescription,onSave,onNext}) {
   }));
   main.querySelector('#next-ticket').addEventListener('click',onNext);
 
-  const registerPicker = (id,stations=list) => {
+  const registerPicker = id => {
     const input=main.querySelector(`#${id}`);
-    if(input)mountStationPicker(input,stations,value=>set(id,value));
+    if(input)mountStationPicker(input,()=>stationChoices(state,id),value=>set(id,value));
   };
+  function paintAmountChoices() {
+    const select=main.querySelector('#paid');if(!select)return;
+    let values=[];try{values=amountOptions(state.corridor,state.ticketFrom,state.person);}catch{}
+    select.replaceChildren(new Option('金額を選択',''));
+    if(state.paid && !values.some(v=>String(v)===String(state.paid)))select.add(new Option(`${state.paid}円（区分・発駅を確認）`,state.paid));
+    for(const value of values)select.add(new Option(`${yen(value)}円`,String(value)));
+    select.value=String(state.paid);
+  }
   function paintFields() {
     const ticket = main.querySelector('#ticket-fields'); if(!ticket)return;
     if(state.type==='amount'){
-      let choices=[];
-      try { choices=amountOptions(state.corridor,state.ticketFrom,state.person); } catch {}
-      const value=String(state.paid),known=choices.some(v=>String(v)===value);
       ticket.innerHTML=field('ticketFrom','金額式きっぷの発駅',state.ticketFrom,'乗継で乗車駅と異なる場合も、券面どおり入力してください。')+
-      `<div class="field"><label for="paid">券面金額</label><select id="paid"><option value="">金額を選択</option>${value&&!known?`<option value="${esc(value)}" selected>${esc(value)}円（区分・発駅を確認）</option>`:''}${choices.map(v=>`<option value="${v}" ${value===String(v)?'selected':''}>${yen(v)}円</option>`).join('')}</select><small>100km以内の金額式きっぷ。券面の発駅・金額・おとな／こどもを確認してください。</small></div>`;
-      registerPicker('ticketFrom');
-      // 発駅変更で選択肢を更新するが、手入力済みの金額は上書きしない。
-      main.querySelector('#ticketFrom').addEventListener('blur',()=>{
-        const from=resolveStation(list,state.ticketFrom);
-        if(from){const select=main.querySelector('#paid');const values=amountOptions(state.corridor,from.name,state.person);select.replaceChildren(new Option('金額を選択',''));if(state.paid&&!values.includes(Number(state.paid)))select.add(new Option(`${state.paid}円（区分・発駅を確認）`,state.paid));for(const value of values)select.add(new Option(`${yen(value)}円`,String(value)));select.value=state.paid;}
-      });
+      `<div class="field"><label for="paid">券面金額</label><select id="paid"></select><small>100km以内の金額式きっぷ。券面の発駅・金額・おとな／こどもを確認してください。</small></div>`;
+      registerPicker('ticketFrom');paintAmountChoices();
       main.querySelector('#paid').addEventListener('change',e=>set('paid',e.target.value));
     } else if(state.type==='section') {
-      ticket.innerHTML=field('ticketFrom','乗車券に記載された発駅',state.ticketFrom)+field('ticketTo','乗車券に記載された着駅',state.ticketTo,'乗継駅で原券が終わる場合も入力できます。');
+      ticket.innerHTML=field('ticketFrom','乗車券に記載された発駅',state.ticketFrom,'今回の乗車駅より前から有効な原券も入力できます。')+field('ticketTo','乗車券に記載された着駅',state.ticketTo,'候補は長万部へ向かう順です。原券が今回の乗車駅で終わる乗継も含みます。');
       registerPicker('ticketFrom');registerPicker('ticketTo');
     } else ticket.innerHTML='<p class="helper">整理券・乗車券なしとして、乗車区間の運賃を表示します。</p>';
     const panel=main.querySelector('#express-fields');
@@ -73,9 +74,7 @@ export function renderFareScreen(main,state,{routeDescription,onSave,onNext}) {
     <div id="express-ticket-interval">${state.expressTicket==='extend'?field('expressTicketFrom','特急券に記載された発駅',state.expressTicketFrom)+field('expressTo','特急券に記載された着駅',state.expressTo):''}</div>
     <p class="helper">普通車指定席・座席未指定の通常料金。同じ列車・同じ座席種別での延長が対象です。</p></div>`:'';
     if(express){
-      const stops=list.filter(s=>state.route.stops.includes(s.name)||s.name==='長万部');
-      registerPicker('expressFrom',stops.filter(s=>s.name!=='長万部'));
-      registerPicker('expressTicketFrom',stops.filter(s=>s.name!=='長万部'));registerPicker('expressTo',stops);
+      registerPicker('expressFrom');registerPicker('expressTicketFrom');registerPicker('expressTo');
       main.querySelector('#expressTicket').addEventListener('change',e=>{set('expressTicket',e.target.value);paintFields();});
     }
   }
@@ -98,10 +97,11 @@ export function renderFareScreen(main,state,{routeDescription,onSave,onNext}) {
     e.preventDefault();
     try {
       for(const input of main.querySelectorAll('[data-station-input]')){
-        const isStop=input.id.startsWith('express'),stations=isStop?list.filter(s=>state.route.stops.includes(s.name)||s.name==='長万部'):list;
+        const stations=stationChoices(state,input.id);
         if(!resolveStation(stations,input.value)){
           input.setAttribute('aria-invalid','true');input.focus();
-          throw new Error(`${main.querySelector(`label[for="${input.id}"]`).textContent}を、候補にある駅名で入力してください。`);
+          const directions={ticketFrom:'発駅は、今回の乗車駅と同じか手前の駅を選択してください。',ticketTo:'着駅は、券面の発駅より先で、今回の乗車駅から長万部までの駅を選択してください。',expressFrom:'特急の乗車駅は、今回の乗車駅以後の北斗停車駅を選択してください。',expressTicketFrom:'特急券の発駅は、今回の特急乗車駅と同じか手前の停車駅を選択してください。',expressTo:'特急券の着駅は、今回の特急乗車駅より先で、長万部までの停車駅を選択してください。'};
+          throw new Error(resolveStation(list,input.value)?directions[input.id]:`${main.querySelector(`label[for="${input.id}"]`).textContent}を、候補にある駅名で入力してください。`);
         }
         input.removeAttribute('aria-invalid');
       }

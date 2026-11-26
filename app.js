@@ -1,7 +1,7 @@
-import { renderFareScreen } from './fare-screen.js?v=1.1.1';
-import { normalizeStation } from './station-picker.js?v=1.1.1';
-import { ROUTES, CORRIDORS, META, SOURCES } from './data.js?v=1.1.1';
-import { settlement, journeyFare, expressFee, distance, yen } from './calculator.js?v=1.1.1';
+import { renderFareScreen } from './fare-screen.js?v=1.2.0';
+import { normalizeStation } from './station-picker.js?v=1.2.0';
+import { ROUTES, CORRIDORS, META, SOURCES } from './data.js?v=1.2.0';
+import { settlement, journeyFare, expressFee, distance, yen } from './calculator.js?v=1.2.0';
 const main=document.querySelector('#main');
 const fareDrafts=new Map();
 const listingSearch=new Map();

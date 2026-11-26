@@ -1,5 +1,5 @@
-import { FARES, CORRIDORS, ROUTES } from './data.js?v=1.1.1';
-import { resolveStation } from './station-picker.js?v=1.1.1';
+import { FARES, CORRIDORS, ROUTES } from './data.js?v=1.2.0';
+import { resolveStation, normalizeStation } from './station-picker.js?v=1.2.0';
 
 export class FareError extends Error {}
 export const yen = n => new Intl.NumberFormat('ja-JP').format(n);
@@ -69,7 +69,32 @@ export function extensionRule(originalDistance) {
   return roundedKm >= 101 ? 'extension' : 'difference';
 }
 function assertCityLabel(corridor, input, destination) {
-  if (String(input).includes('市内') && (!['sapporo','muroran'].includes(corridor) || distance(corridor,'札幌',destination) <= 2000)) throw new FareError('札幌市内の表示と経路・着駅を確認してください。この原券区間は市内制度の条件を満たしません。');
+  if (normalizeStation(input).includes('市内') && (!['sapporo','muroran'].includes(corridor) || distance(corridor,'札幌',destination) <= 2000)) throw new FareError('札幌市内の表示と経路・着駅を確認してください。この原券区間は市内制度の条件を満たしません。');
+}
+
+// 券面の各項目に入力できる駅。posは全経路で長万部へ向かって増える。
+// 発駅は現在地から後方へ、着駅は現在地から長万部へ向かう順で返す。
+export function stationChoices({corridor,boarding,ticketFrom,expressFrom,expressTicketFrom},field) {
+  const list=CORRIDORS[corridor] || [],actual=resolveStation(list,boarding);
+  if(!actual || actual.name==='長万部')return [];
+  if(field==='ticketFrom')return list.filter(s=>s.pos<=actual.pos).slice().reverse();
+  if(field==='ticketTo') {
+    const start=resolveStation(list,ticketFrom);
+    if(!start || start.pos>actual.pos)return [];
+    return list.filter(s=>s.pos>=actual.pos && s.pos>start.pos).filter(s=>{
+      try{assertCityLabel(corridor,ticketFrom,s.name);return true;}catch{return false;}
+    });
+  }
+  const route=ROUTES.find(r=>r.stops && r.corridor===(corridor==='airport'?'sapporo':corridor));
+  if(!route)return [];
+  const stops=list.filter(s=>route.stops.includes(s.name)||s.name==='長万部');
+  if(field==='expressFrom')return stops.filter(s=>s.pos>=actual.pos && s.name!=='長万部');
+  const origin=resolveStation(list,expressFrom ?? (actual.name==='新千歳空港'?'南千歳':actual.name));
+  if(!origin || !route.stops.includes(origin.name) || origin.pos<actual.pos)return [];
+  if(field==='expressTicketFrom')return stops.filter(s=>s.pos<=origin.pos).slice().reverse();
+  const start=resolveStation(list,expressTicketFrom ?? origin.name);
+  if(field==='expressTo' && start && route.stops.includes(start.name) && start.pos<=origin.pos)return stops.filter(s=>s.pos>origin.pos);
+  return [];
 }
 
 export function settlement({ corridor, boarding, person = 'adult', type = 'none', paid = '', ticketFrom, ticketTo = '',
@@ -89,7 +114,7 @@ export function settlement({ corridor, boarding, person = 'adult', type = 'none'
     calculationFrom = start.name;
     if (start.pos > actual.pos) throw new FareError('券面の発駅より手前から乗車しているため、この乗越計算では扱えません。');
     if (type === 'amount') {
-      if (String(ticketFrom).includes('市内')) throw new FareError('金額式の発駅は具体的な駅名を選択してください。');
+      if (normalizeStation(ticketFrom).includes('市内')) throw new FareError('金額式の発駅は具体的な駅名を選択してください。');
       originalFare = parseAmount(paid);
       if (!amountOptions(corridor,start.name,person).includes(originalFare)) throw new FareError('券面金額とおとな・こどもを確認してください。101km以上のきっぷは「区間の乗越」で発着駅を入力します。');
       const minimum = journeyFare(corridor,start.name,actual.name,person), target = journeyFare(corridor,start.name,'長万部',person);
@@ -121,7 +146,7 @@ export function settlement({ corridor, boarding, person = 'adult', type = 'none'
   }
   let charge = 0, fullCharge = 0, oldCharge = 0, chargeLines = [], expressOrigin = '';
   if (express) {
-    if([expressFrom,expressTicketFrom,expressTo].some(s=>String(s??'').includes('市内')))throw new FareError('特急の区間は市内表示を使わず、具体的な駅名を入力してください。');
+    if([expressFrom,expressTicketFrom,expressTo].some(s=>normalizeStation(s).includes('市内')))throw new FareError('特急の区間は市内表示を使わず、具体的な駅名を入力してください。');
     const route = ROUTES.find(r => r.stops && r.corridor === (corridor === 'airport' ? 'sapporo' : corridor));
     if (!route) throw new FareError('特急北斗の対応経路を選択してください。');
     const origin = getStation(corridor,expressFrom === undefined ? (actual.name === '新千歳空港' ? '南千歳' : actual.name) : expressFrom);
