@@ -1,7 +1,8 @@
-import { renderFareScreen } from './fare-screen.js?v=1.2.0';
-import { normalizeStation } from './station-picker.js?v=1.2.0';
-import { ROUTES, CORRIDORS, META, SOURCES } from './data.js?v=1.2.0';
-import { settlement, journeyFare, expressFee, distance, yen } from './calculator.js?v=1.2.0';
+import { renderFareScreen } from './fare-screen.js?v=1.3.0';
+import { normalizeStation } from './station-picker.js?v=1.3.0';
+import { ROUTES, CORRIDORS, META, SOURCES } from './data.js?v=1.3.0';
+import { settlement, journeyFare, expressFee, distance, yen } from './calculator.js?v=1.3.0';
+import { newDiscountState } from './discounts.js?v=1.3.0';
 const main=document.querySelector('#main');
 const fareDrafts=new Map();
 const listingSearch=new Map();
@@ -23,7 +24,7 @@ function home(){
   main.innerHTML=`<section class="hero"><div><p class="eyebrow">OSHAMAMBE STATION</p><h1>長万部駅<br><span>着駅精算。</span></h1><p class="lead">ご乗車の列車と駅を選ぶだけ。<br>運賃の確認から、きっぷの乗越精算まで。</p></div><div class="destination" aria-label="降車駅は長万部駅です"><div class="dest-top"><span class="station-code">H47</span><span>降車駅</span></div><strong>長万部</strong><small>OSHAMAMBE</small></div></section>
   <section aria-labelledby="choose-train"><div class="section-heading"><h2 id="choose-train">ご乗車の列車を選択</h2><p>普通列車 3方面 ／ 特急 2方面</p></div><div class="route-grid">${ROUTES.map(r=>`<a class="route-card ${r.color}" href="#/route/${r.id}"><div class="route-card-top"><span class="route-symbol">${svg(r.icon)}</span><span class="badge">${r.badge}</span></div><h3>${r.title}</h3><p>${r.description}</p><span class="card-bottom">${r.line} ・ 乗車駅を選択</span></a>`).join('')}</div></section>
   <div class="how-strip"><div>${svg('train')}<span><b>乗車駅</b>をタップ</span></div><div>${svg('ticket')}<span>お持ちの<b>きっぷ</b>を入力</span></div><div>${svg('check')}<span>大きな表示で<b>精算額</b>を確認</span></div></div>
-  <p class="fine-print">通常の片道・無割引のきっぷを対象とした精算補助です。運賃の適用範囲は<a href="#/guide">使い方・運賃データ</a>で確認できます。</p>`;
+  <p class="fine-print">通常の片道きっぷと、画面で選択できる割引・商品の精算補助です。運賃の適用範囲は<a href="#/guide">使い方・運賃データ</a>で確認できます。</p>`;
 }
 function variants(){
   if(state.route.id==='hakodate-local')return [['hakodate','駒ケ岳経由'],['sawara','砂原経由']];
@@ -60,7 +61,7 @@ function farePage(){
 }
 function guide(){
   document.title='使い方・運賃データ｜長万部駅 着駅精算';
-  main.innerHTML=crumb('<i></i><span>使い方・運賃データ</span>')+`<article class="guide"><p class="eyebrow">GUIDE & DATA</p><h1>使い方・運賃データ</h1><section><h2>3つの操作で精算</h2><ol><li>メニューからご乗車の列車を選び、乗車駅をタップします。経由・方面も確認してください。</li><li>おとな・こどもと、きっぷの種類を選択します。金額式は券面発駅と金額、区間の乗越は券面の発着駅を入力します。</li><li>「精算額を表示」を押し、大きな金額表示と計算内訳を確認します。特急利用時は特急券の状態も選択してください。</li></ol></section><section><h2>計算の扱い</h2><div class="rule-line"><strong>整理券・乗車券なし</strong><p>選択した乗車駅から長万部までの運賃を全額表示します。整理券番号と駅名の対応は列車ごとに異なるため、番号では検索しません。</p></div><div class="rule-line"><strong>100km以内の乗車券</strong><p>原券の発駅から長万部までの運賃と、原券の運賃の差額を計算します。金額式は券面の金額を差し引きます。</p></div><div class="rule-line"><strong>101km以上の乗車券</strong><p>営業キロの1km未満を切り上げ、101km以上となる原券は、原券の着駅から長万部までの運賃を別途計算します。原券の区間と経路が入力候補にある通常の片道乗車券が対象です。</p></div><div class="rule-line"><strong>特急 北斗</strong><p>普通車指定席・座席未指定の通常料金を通年で計算。乗越は、同じ列車・同じ座席種別の特急券に限り、新旧の料金差額を表示します。新千歳空港は南千歳乗継です。</p></div><div class="rule-line"><strong>経路・こども・特例</strong><p>小樽経由と室蘭・千歳線経由は別に計算。砂原経由の大沼〜森は両端を通る場合22.5kmを使用します。室蘭・千歳線経由で札幌市内の駅から長万部までの運賃は札幌中心駅基準。新千歳空港は加算運賃を含みます。こどもは運賃・料金をそれぞれ半額にし、10円未満を切り捨てます。</p></div></section><section><h2>対応範囲</h2><p>本アプリは精算補助ツールです。通常の片道・無割引の紙のきっぷを対象としています。割引乗車券、定期券、IC、企画券、連絡乗車券、グリーン車、経路変更、長万部以遠のきっぷ、原券の着駅より先で列車に乗り継ぐ場合、候補にない発着駅は係員による確認が必要です。払いもどしや決済・発券は行いません。最終的な取扱いは最新の規則・現場の確認によります。</p></section><section><h2>運賃データと参照元</h2><p>バージョン ${META.version} ／ 運賃適用 ${META.fareSince}改定後 ／ 確認日 ${META.checked}。利用者提供の2026年3月更新表に掲載された運賃・料金も照合しています。原画像はサイトに掲載していません。JR北海道の公式サイトではありません。</p><ul class="source-list" style="margin-top:18px">${SOURCES.map(([t,u])=>`<li><a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${t}</a></li>`).join('')}</ul></section><a class="back-action" href="#/">メニューに戻る</a></article>`;
+  main.innerHTML=crumb('<i></i><span>使い方・運賃データ</span>')+`<article class="guide"><p class="eyebrow">GUIDE & DATA</p><h1>使い方・運賃データ</h1><section><h2>3つの操作で精算</h2><ol><li>メニューからご乗車の列車を選び、乗車駅をタップします。経由・方面も確認してください。</li><li>おとな・こどもと、きっぷの種類を選択します。金額式は券面発駅と金額、区間の乗越は券面の発着駅を入力します。</li><li>「精算額を表示」を押し、大きな金額表示と計算内訳を確認します。特急利用時は特急券の状態も選択してください。</li></ol></section><section><h2>計算の扱い</h2><div class="rule-line"><strong>整理券・乗車券なし</strong><p>選択した乗車駅から長万部までの運賃を全額表示します。整理券番号と駅名の対応は列車ごとに異なるため、番号では検索しません。</p></div><div class="rule-line"><strong>100km以内の乗車券</strong><p>原券の発駅から長万部までの運賃と、原券の運賃の差額を計算します。金額式は券面の金額を差し引きます。</p></div><div class="rule-line"><strong>101km以上の乗車券</strong><p>営業キロの1km未満を切り上げ、101km以上となる原券は、原券の着駅から長万部までの運賃を別途計算します。原券の区間と経路が入力候補にある通常の片道乗車券が対象です。</p></div><div class="rule-line"><strong>学割・身障割</strong><p>学割は新規発売区間が片道101km以上の普通運賃を2割引。学割原券の乗越区間は通常運賃を別途収受します。身障割は手帳・種別・同行条件を確認し、普通運賃を5割引。小児は小児運賃確定後に割引します。単独の短区間乗越は適用確認の選択を必須とします。各割引は10円未満切捨てです。</p></div><div class="rule-line"><strong>ジパング・トクだ値</strong><p>ジパングの新規発売は2026年3月14日以後の片道101km以上・2割引／3割引に対応し、除外日を確認します。使用開始後の原券区間外は通常運賃・料金を別途計算。北斗の特急トクだ値も予約区間外の通常運賃・料金を別途計算し、原券の発売額を控除しません。乗り遅れ等で乗車券部分だけが有効な場合は、その状態を選択します。</p></div><div class="rule-line"><strong>特急 北斗</strong><p>普通車指定席・座席未指定の通常料金を通年で計算。通常特急券の乗越は、同じ列車・同じ座席種別に限り、原特急券の発駅から新旧の料金差額を表示します。学割・身障割は北斗の特急料金に適用しません。ジパング・トクだ値の区間外は別途収受です。新千歳空港は南千歳乗継です。</p></div><div class="rule-line"><strong>経路・こども・特例</strong><p>小樽経由と室蘭・千歳線経由は別に計算。砂原経由の大沼〜森は両端を通る場合22.5kmを使用します。室蘭・千歳線経由で札幌市内の駅から長万部までの運賃は札幌中心駅基準。新千歳空港は加算運賃を含みます。こどもは運賃・料金をそれぞれ半額にし、10円未満を切り捨てます。</p></div></section><section><h2>対応範囲</h2><p>本アプリは精算補助ツールです。通常の片道きっぷ、学割、身障割、ジパング、北斗の特急トクだ値を画面に示す条件で扱います。社割・指のみ券・他の企画券、定期券、IC、連絡乗車券、グリーン車、経路変更、長万部以遠、原券着駅より先の乗継、候補外の発着駅は個別確認が必要です。割引は券面・証明書・同行・日付等を確認して選択してください。払いもどしや決済・発券は行いません。最終的な取扱いは最新の規則・現場の確認によります。</p></section><section><h2>運賃データと参照元</h2><p>バージョン ${META.version} ／ 運賃適用 ${META.fareSince}改定後 ／ 確認日 ${META.checked}。利用者提供の2026年3月更新表に掲載された運賃・料金も照合しています。原画像はサイトに掲載していません。JR北海道の公式サイトではありません。</p><ul class="source-list" style="margin-top:18px">${SOURCES.map(([t,u])=>`<li><a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${t}</a></li>`).join('')}</ul></section><a class="back-action" href="#/">メニューに戻る</a></article>`;
 }
 function navigate(){
   const [raw,query='']=location.hash.replace(/^#\/?/,'').split('?');
@@ -77,9 +78,9 @@ function navigate(){
       if(!CORRIDORS[state.corridor].some(s=>s.name===name&&s.name!=='長万部')||(isExpress()&&!r.stops.includes(name)&&name!=='新千歳空港')){location.hash=routePath();return;}
       state.boarding=name;
       const draft=fareDrafts.get(fareKey());
-      if(draft){const chosenPerson=state.person;Object.assign(state,draft);if(state.person!==chosenPerson){state.person=chosenPerson;state.result=null;state.dirty=true;if(state.type==='none'&&!isExpress()){state.result=settlement({...state,express:false});state.dirty=false;}}}
+      if(draft){const chosenPerson=state.person;Object.assign(state,draft);if(state.person!==chosenPerson){state.person=chosenPerson;state.result=null;state.dirty=true;state.discountConfirmed=false;state.expressDiscountConfirmed=false;if(state.type==='none'&&!isExpress()&&state.discount==='none'){state.result=settlement({...state,express:false});state.dirty=false;}}}
       else {
-        Object.assign(state,{type:'none',paid:'',ticketFrom:name,ticketTo:'',expressTicket:'none',expressFrom:name==='新千歳空港'?'南千歳':name,expressTicketFrom:name==='新千歳空港'?'南千歳':name,expressTo:'',dirty:false,error:''});
+        Object.assign(state,{...newDiscountState(),type:'none',paid:'',ticketFrom:name,ticketTo:'',expressTicket:'none',expressFrom:name==='新千歳空港'?'南千歳':name,expressTicketFrom:name==='新千歳空港'?'南千歳':name,expressTo:'',dirty:false,error:''});
         state.result=settlement({...state,express:isExpress()});
       }
       farePage();

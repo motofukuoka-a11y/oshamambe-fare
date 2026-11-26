@@ -1,5 +1,5 @@
 // 距離は0.1km単位の整数。運賃表は2025-04-01改定後のJR北海道・幹線。
-export const META = { version: '1.2.0', checked: '2026-11-27', fareSince: '2025-04-01' };
+export const META = { version: '1.3.0', checked: '2026-11-27', fareSince: '2025-04-01' };
 export const FARES = [[3,210],[6,270],[10,310],[15,360],[20,470],[25,580],[30,680],[35,800],[40,920],[45,1040],[50,1210],[60,1380],[70,1590],[80,1800],[90,2020],[100,2240],[120,2530],[140,3080],[160,3520],[180,3960],[200,4400],[220,4840],[240,5170],[260,5610],[280,5940],[300,6270]];
 const rows = (text) => text.split('|').map(s => { const [name,kana,km,code] = s.split(','); return {name,kana,km:Number(km),code}; });
 const hakodate = rows('函館,はこだて,0,H75|五稜郭,ごりょうかく,34,H74|桔梗,ききょう,83,H73|大中山,おおなかやま,104,H72|七飯,ななえ,138,H71|新函館北斗,しんはこだてほくと,179,H70|大沼,おおぬま,270,H68|大沼公園,おおぬまこうえん,280,H67|赤井川,あかいがわ,317,H66|駒ケ岳,こまがたけ,365,H65|森,もり,495,H62|石倉,いしくら,621,H59|落部,おとしべ,661,H58|野田生,のだおい,714,H57|山越,やまこし,760,H56|八雲,やくも,811,H54|山崎,やまさき,883,H52|黒岩,くろいわ,944,H51|国縫,くんぬい,1028,H49|長万部,おしゃまんべ,1123,H47');
@@ -26,6 +26,11 @@ export const ROUTES = [
   { id:'sapporo-express',title:'札幌発特急列車',from:'札幌方面',line:'特急 北斗',badge:'特急',color:'purple',corridor:'sapporo',stops:['札幌','新札幌','南千歳','苫小牧','白老','登別','東室蘭','伊達紋別','洞爺'],description:'北斗の着駅精算',icon:'express' }
 ];
 export const SOURCES = [
+  ['JR北海道 学生割引の案内','https://www.jrhokkaido.co.jp/faq/qa0037.html'],
+  ['JR北海道 身体障害者旅客運賃割引規則','https://www.jrhokkaido.co.jp/network/guide/pdf/yakkan_kisoku_02.pdf'],
+  ['ジパング倶楽部の条件・使用開始前の乗車変更（JR東海）','https://railway.jr-central.co.jp/tickets/zipangu-club/index.html'],
+  ['JR北海道 2026年3月14日以後のジパング条件','https://www.jrhokkaido.co.jp/CM/Info/press/pdf/20251008_KO_renzoku.pdf'],
+  ['えきねっと 特急トクだ値の区間外乗車','https://www.eki-net.com/top/jrticket/guide/reserve/tokudane.html'],
   ['JR北海道 各駅間の営業キロ（運賃計算キロ）','https://www.jrhokkaido.co.jp/fare/pdf/05.pdf'],
   ['JR北海道 普通旅客運賃表（2025年4月1日改定）','https://www.jrhokkaido.co.jp/fare/pdf/06.pdf'],
   ['JR北海道 旅客営業規則 第3章（運賃・料金）','https://www.jrhokkaido.co.jp/network/guide/pdf/yakkan_02_03.pdf'],

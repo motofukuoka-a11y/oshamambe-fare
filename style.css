@@ -13,3 +13,8 @@
 /* 駅候補はタップでも開き、長い一覧は欄内でスクロール。 */
 .station-input input{padding-right:50px}.station-toggle{position:absolute;right:1px;top:1px;width:46px;height:48px;display:grid;place-items:center;border-radius:0 7px 7px 0;background:transparent;color:var(--green);font-size:1.5rem}.station-toggle:hover{background:#e9f4ec}.station-toggle:focus-visible{outline-offset:-4px}.station-options [role=option]{touch-action:pan-y}
 .fare-workspace .calc-panel{overflow:visible}
+
+/* 割引は必要な条件だけを表示。通常の整理券は駅タップで即時計算。 */
+.discount-control{display:flex;align-items:center;gap:18px;max-width:800px;margin:0 0 24px;background:white;border:1px solid var(--line);border-radius:9px;padding:14px 18px}.discount-control label{font-size:.95rem;font-weight:600;white-space:nowrap}.discount-control select{min-width:0;flex:1}.discount-note{font-size:.875rem;line-height:1.8;background:#eaf2ed;border-radius:8px;padding:13px 15px;color:#304e43;margin-bottom:16px}.check-row{display:flex;align-items:flex-start;gap:10px;font-size:.9rem;line-height:1.8;margin:14px 0 22px;cursor:pointer}.check-row input{width:21px;min-height:21px;height:21px;margin:3px 0 0;flex-shrink:0;accent-color:var(--accent)}.result-policy{font-size:.9rem;line-height:1.7;color:#d1e7d9;margin:3px 0 10px}
+@media(max-width:700px){.discount-control{display:block;padding:14px}.discount-control label{display:block;margin-bottom:9px}.discount-control select{width:100%}}
+@media print{.discount-control{display:none}}
