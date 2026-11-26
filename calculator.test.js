@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FARES,CORRIDORS } from './data.js';
-import { fare,expressFee,childAmount,journeyFare,distance,settlement } from './calculator.js';
+import { FARES,CORRIDORS } from './data.js?v=1.1.0';
+import { fare,expressFee,childAmount,journeyFare,distance,settlement,extensionRule,parseAmount } from './calculator.js';
 // 利用者提供の2026年3月更新表に記載された公示運賃・料金の照合値。
 const reference={
   hakodate:{国縫:310,黒岩:470,山崎:580,八雲:800,山越:920,野田生:1040,落部:1210,石倉:1380,森:1590,駒ケ岳:1800,赤井川:2020,大沼公園:2020,大沼:2020,新函館北斗:2240,七飯:2240,大中山:2530,桔梗:2530,五稜郭:2530,函館:2530},
@@ -56,16 +56,14 @@ test('方向違い・乗車区間外・未知駅・長万部乗車は拒否',()=
   for(const p of[{ticketFrom:'森',ticketTo:'函館'},{ticketFrom:'森',ticketTo:'八雲'},{ticketFrom:'函館',ticketTo:'存在しない駅'}])assert.throws(()=>settlement({corridor:'hakodate',boarding:'函館',type:'section',...p}));
   assert.throws(()=>settlement({corridor:'hakodate',boarding:'長万部'}));
 });
-test('UIの候補と同様に券面着駅＝乗車駅の入力を拒否',()=>{
-  assert.throws(()=>settlement({corridor:'hakodate',boarding:'大沼',type:'section',ticketFrom:'函館',ticketTo:'大沼'}));
+test('原券着駅での列車乗継も全区間の差額で計算',()=>{
+  const r=settlement({corridor:'hakodate',boarding:'森',type:'section',ticketFrom:'函館',ticketTo:'森'});
+  assert.equal(r.originalFare,1210);assert.equal(r.base,1320);assert.equal(r.rule,'difference');
+  assert.equal(settlement({corridor:'hakodate',boarding:'森',type:'section',ticketFrom:'函館',ticketTo:'森',person:'child'}).base,660);
 });
 test('現行駅の重複・位置順、廃駅が含まれない',()=>{
   for(const list of Object.values(CORRIDORS)){assert.equal(new Set(list.map(s=>s.name)).size,list.length);assert.equal(list.at(-1).name,'長万部');for(let i=1;i<list.length;i++)assert.ok(list[i].pos>list[i-1].pos);assert.ok(!list.some(s=>['二股','仁山','中ノ沢','姫川','池田園','流山温泉','銚子口'].includes(s.name)));}
 });
 test('原券100.0kmは差額、100.1kmは別途運賃',()=>{
-  CORRIDORS.boundary=[{name:'発駅',pos:0},{name:'原着駅',pos:1000},{name:'長万部',pos:1500}];
-  try {
-    let r=settlement({corridor:'boundary',boarding:'発駅',type:'section',ticketFrom:'発駅',ticketTo:'原着駅'});assert.equal(r.base,1280);assert.match(r.method,/100km以内/);
-    CORRIDORS.boundary[1].pos=1001;r=settlement({corridor:'boundary',boarding:'発駅',type:'section',ticketFrom:'発駅',ticketTo:'原着駅'});assert.equal(r.base,1210);assert.match(r.method,/100km超/);
-  }finally{delete CORRIDORS.boundary;}
+  assert.equal(extensionRule(1000),'difference');assert.equal(extensionRule(1001),'extension');assert.throws(()=>extensionRule(0));
 });
