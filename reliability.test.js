@@ -1,15 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import { CORRIDORS, META } from './data.js?v=1.1.0';
-import {settlement,journeyFare,parseAmount,extensionRule} from './calculator.js?v=1.1.0';
-import {stationMatches,resolveStation,normalizeStation} from './station-picker.js?v=1.1.0';
+import { CORRIDORS, META } from './data.js?v=1.1.1';
+import {settlement,journeyFare,parseAmount,extensionRule} from './calculator.js?v=1.1.1';
+import {stationMatches,resolveStation,normalizeStation} from './station-picker.js?v=1.1.1';
 
 test('金額式の券面発駅が列車乗車駅と異なる乗継',()=>{
   const r=settlement({corridor:'hakodate',boarding:'森',type:'amount',ticketFrom:'函館',paid:'1210'});
   assert.equal(r.base,1320);assert.equal(r.calculationFrom,'函館');assert.deepEqual(r.lines.map(x=>x.value),[2530,1210]);
 });
-test('100km超の原券着駅での乗継は乗越区間を収受',()=>{
+test('101km以上の原券着駅での乗継は乗越区間を収受',()=>{
   const r=settlement({corridor:'hakodate',boarding:'国縫',type:'section',ticketFrom:'函館',ticketTo:'国縫'});
   assert.equal(r.rule,'extension');assert.equal(r.base,310);assert.equal(r.lines.length,1);assert.equal(r.lines[0].value,310);
   assert.equal(r.calculationFrom,'国縫');assert.equal(r.fareDistance,95);
@@ -52,7 +52,7 @@ test('今回の特急区間を含まない原特急券で差額を計算しな�
   assert.throws(()=>settlement({corridor:'sapporo',boarding:'新札幌',express:true,expressTicket:'extend',expressTicketFrom:'札幌',expressTo:'新札幌'}));
   assert.throws(()=>settlement({corridor:'sapporo',boarding:'札幌',express:true,expressFrom:'札幌市内'}));
 });
-test('100km超の砂原原券の根拠は乗越区間を表示',()=>{
+test('101km以上の砂原原券の根拠は乗越区間を表示',()=>{
   const r=settlement({corridor:'sawara',boarding:'函館',type:'section',ticketFrom:'函館',ticketTo:'国縫'});
   assert.equal(r.calculationFrom,'国縫');assert.equal(r.fareDistance,95);assert.equal(r.base,310);assert.ok(!r.notes.some(s=>s.includes('第69条')));
 });
@@ -103,6 +103,7 @@ test('すべての経路・原券区間で内訳と合計が一致し乗継で�
 });
 test('100km境界の分類は整数0.1km単位',()=>{
   assert.equal(extensionRule(999),'difference');assert.equal(extensionRule(1000),'difference');assert.equal(extensionRule(1001),'extension');
+  assert.equal(extensionRule(1009),'extension');assert.equal(extensionRule(1010),'extension');assert.equal(extensionRule(1011),'extension');
   for(const value of [100.1,-1,NaN,Infinity])assert.throws(()=>extensionRule(value));
 });
 test('公開ファイルの版が一致し新旧の計算データを混在させない',()=>{

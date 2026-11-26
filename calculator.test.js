@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FARES,CORRIDORS } from './data.js?v=1.1.0';
+import { FARES,CORRIDORS } from './data.js?v=1.1.1';
 import { fare,expressFee,childAmount,journeyFare,distance,settlement,extensionRule,parseAmount } from './calculator.js';
 // 利用者提供の2026年3月更新表に記載された公示運賃・料金の照合値。
 const reference={
@@ -31,15 +31,15 @@ test('特急料金の全区分境界と端数',()=>{
 test('100km以内の原券：全区間との差額',()=>{
   const r=settlement({corridor:'hakodate',boarding:'函館',type:'section',ticketFrom:'函館',ticketTo:'黒岩'});assert.equal(r.originalDistance,944);assert.equal(r.base,290);assert.match(r.method,/100km以内/);
 });
-test('100km超の原券：乗越区間を別途収受',()=>{
-  const r=settlement({corridor:'hakodate',boarding:'函館',type:'section',ticketFrom:'函館',ticketTo:'国縫'});assert.equal(r.originalDistance,1028);assert.equal(r.base,310);assert.match(r.method,/100km超/);
+test('101km以上の原券：乗越区間を別途収受',()=>{
+  const r=settlement({corridor:'hakodate',boarding:'函館',type:'section',ticketFrom:'函館',ticketTo:'国縫'});assert.equal(r.originalDistance,1028);assert.equal(r.base,310);assert.match(r.method,/101km以上/);
 });
 test('こどもは差額を出す前に各運賃を丸める',()=>{
   const r=settlement({corridor:'hakodate',boarding:'八雲',type:'section',ticketFrom:'八雲',ticketTo:'山崎',person:'child'});assert.equal(r.base,250);assert.equal(r.originalFare,150);
 });
 test('長万部まで有効・特急券あり',()=>{const r=settlement({corridor:'hakodate',boarding:'函館',type:'section',ticketFrom:'函館',ticketTo:'長万部',express:true,expressTicket:'valid'});assert.equal(r.total,0);});
 test('金額式：発駅を基準に差し引く',()=>{assert.equal(settlement({corridor:'hakodate',boarding:'八雲',type:'amount',paid:'310'}).total,490);assert.equal(settlement({corridor:'hakodate',boarding:'八雲',type:'amount',paid:'150',person:'child'}).total,250);});
-test('金額式の空欄・負数・小数・未知額・100km超・過大額を拒否',()=>{
+test('金額式の空欄・負数・小数・未知額・101km以上・過大額を拒否',()=>{
   for(const paid of['','-10','310.5','311','2530','800'])assert.throws(()=>settlement({corridor:'hakodate',boarding:'国縫',type:'amount',paid}));
 });
 test('砂原経由は両端通過に特例、支線内発着には実キロ',()=>{assert.equal(distance('sawara','函館'),1123);assert.equal(distance('sawara','大沼'),853);assert.equal(distance('sawara','鹿部'),835);assert.equal(distance('sawara','鹿部','東森'),189);assert.equal(distance('sawara','大沼','森'),225);});
@@ -64,6 +64,8 @@ test('原券着駅での列車乗継も全区間の差額で計算',()=>{
 test('現行駅の重複・位置順、廃駅が含まれない',()=>{
   for(const list of Object.values(CORRIDORS)){assert.equal(new Set(list.map(s=>s.name)).size,list.length);assert.equal(list.at(-1).name,'長万部');for(let i=1;i<list.length;i++)assert.ok(list[i].pos>list[i-1].pos);assert.ok(!list.some(s=>['二股','仁山','中ノ沢','姫川','池田園','流山温泉','銚子口'].includes(s.name)));}
 });
-test('原券100.0kmは差額、100.1kmは別途運賃',()=>{
-  assert.equal(extensionRule(1000),'difference');assert.equal(extensionRule(1001),'extension');assert.throws(()=>extensionRule(0));
+test('1km未満切上げ後100km以内は差額、101km以上は別途運賃',()=>{
+  assert.equal(extensionRule(1000),'difference');
+  for(const distance of [1001,1009,1010,1011])assert.equal(extensionRule(distance),'extension');
+  assert.throws(()=>extensionRule(0));
 });

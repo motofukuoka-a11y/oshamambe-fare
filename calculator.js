@@ -1,5 +1,5 @@
-import { FARES, CORRIDORS, ROUTES } from './data.js?v=1.1.0';
-import { resolveStation } from './station-picker.js?v=1.1.0';
+import { FARES, CORRIDORS, ROUTES } from './data.js?v=1.1.1';
+import { resolveStation } from './station-picker.js?v=1.1.1';
 
 export class FareError extends Error {}
 export const yen = n => new Intl.NumberFormat('ja-JP').format(n);
@@ -64,7 +64,9 @@ export function amountOptions(corridor, from, person = 'adult') {
 }
 export function extensionRule(originalDistance) {
   if (!Number.isInteger(originalDistance) || originalDistance <= 0) throw new FareError('原券の区間を確認してください。');
-  return originalDistance <= 1000 ? 'difference' : 'extension';
+  // 営業キロの1km未満は切り上げ、100km以内／101km以上で区分。
+  const roundedKm = Math.ceil(originalDistance / 10);
+  return roundedKm >= 101 ? 'extension' : 'difference';
 }
 function assertCityLabel(corridor, input, destination) {
   if (String(input).includes('市内') && (!['sapporo','muroran'].includes(corridor) || distance(corridor,'札幌',destination) <= 2000)) throw new FareError('札幌市内の表示と経路・着駅を確認してください。この原券区間は市内制度の条件を満たしません。');
@@ -89,7 +91,7 @@ export function settlement({ corridor, boarding, person = 'adult', type = 'none'
     if (type === 'amount') {
       if (String(ticketFrom).includes('市内')) throw new FareError('金額式の発駅は具体的な駅名を選択してください。');
       originalFare = parseAmount(paid);
-      if (!amountOptions(corridor,start.name,person).includes(originalFare)) throw new FareError('券面金額とおとな・こどもを確認してください。100km超のきっぷは「区間の乗越」で発着駅を入力します。');
+      if (!amountOptions(corridor,start.name,person).includes(originalFare)) throw new FareError('券面金額とおとな・こどもを確認してください。101km以上のきっぷは「区間の乗越」で発着駅を入力します。');
       const minimum = journeyFare(corridor,start.name,actual.name,person), target = journeyFare(corridor,start.name,'長万部',person);
       if (originalFare < minimum || originalFare > target) throw new FareError('券面金額と発駅・乗車駅・経路の組合せを確認してください。');
       base = target-originalFare; rule = 'amount'; method = '金額式：全区間との差額';
@@ -111,9 +113,9 @@ export function settlement({ corridor, boarding, person = 'adult', type = 'none'
         explanation = `${yen(target)}円 − ${yen(originalFare)}円 ＝ ${yen(base)}円`;
       } else {
         calculationFrom=last.name;
-        base = journeyFare(corridor,last.name,'長万部',person); rule = 'extension'; method = '原券100km超：乗越区間の運賃';
+        base = journeyFare(corridor,last.name,'長万部',person); rule = 'extension'; method = '原券101km以上：乗越区間の運賃';
         lines = [{label:`乗越 ${last.name}〜長万部`,value:base}];
-        explanation = `原券${(originalDistance/10).toFixed(1)}kmは100km超のため、原券運賃を差し引かず、乗越区間を別途収受します。`;
+        explanation = `原券${(originalDistance/10).toFixed(1)}km（1km未満切上げで${Math.ceil(originalDistance/10)}km）は101km以上のため、原券運賃を差し引かず、乗越区間を別途収受します。`;
       }
     }
   }

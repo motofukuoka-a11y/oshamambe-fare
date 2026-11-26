@@ -1,6 +1,6 @@
-import { CORRIDORS, META } from './data.js?v=1.1.0';
-import { settlement, yen, amountOptions } from './calculator.js?v=1.1.0';
-import { mountStationPicker, resolveStation } from './station-picker.js?v=1.1.0';
+import { CORRIDORS, META } from './data.js?v=1.1.1';
+import { settlement, yen, amountOptions } from './calculator.js?v=1.1.1';
+import { mountStationPicker, resolveStation } from './station-picker.js?v=1.1.1';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const types = [['none','整理券・乗車券なし'],['amount','金額式（エド券）'],['section','区間の乗越']];
