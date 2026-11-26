@@ -1,6 +1,6 @@
-import { FARES, CORRIDORS, ROUTES } from './data.js?v=1.3.0';
-import { resolveStation, normalizeStation } from './station-picker.js?v=1.3.0';
-import { discountRule, discountAmount, verifyDiscount, isZipang, zipangDate } from './discounts.js?v=1.3.0';
+import { FARES, CORRIDORS, ROUTES } from './data.js?v=1.3.1';
+import { resolveStation, normalizeStation } from './station-picker.js?v=1.3.1';
+import { discountRule, discountAmount, verifyDiscount, isZipang, zipangDate } from './discounts.js?v=1.3.1';
 
 export class FareError extends Error {}
 export const yen = n => new Intl.NumberFormat('ja-JP').format(n);
@@ -175,7 +175,8 @@ export function settlement(input) {
       }
     }
   }
-  let charge = 0, fullCharge = 0, oldCharge = 0, chargeLines = [], expressOrigin = '',chargeMethod='特急料金';
+  const fareRule=type==='none'||rule==='covered'?'':isZipang(discount.id)?'zipang':discount.id==='tokudane'?'tokudane':'ordinary';
+  let charge = 0, fullCharge = 0, oldCharge = 0, chargeLines = [], expressOrigin = '',chargeMethod='特急料金',chargeRule='';
   if (express) {
     if([expressFrom,expressTicketFrom,expressTo].some(s=>normalizeStation(s).includes('市内')))throw new FareError('特急の区間は市内表示を使わず、具体的な駅名を入力してください。');
     const route = ROUTES.find(r => r.stops && r.corridor === (corridor === 'airport' ? 'sapporo' : corridor));
@@ -201,7 +202,7 @@ export function settlement(input) {
     else if (feeKind==='product'){
       if(discount.id!=='tokudane'||input.tokudaneUse!=='same'||originalStart.pos>origin.pos||originalEnd.pos<=origin.pos)throw new FareError('今回の北斗の利用区間を含む、同じ指定列車のトクだ値を確認してください。');
       charge=expressFee(distance(corridor,originalEnd.name),person);chargeLines=[{label:`区間外 ${originalEnd.name}〜長万部（通常料金）`,value:charge}];chargeMethod='トクだ値の区間外：特急料金を別途';
-      fullCharge=null;oldCharge=null;
+      fullCharge=null;oldCharge=null;chargeRule='tokudane';
     }
     else if (feeKind === 'extend') {
       const start = getStation(corridor,expressTicketFrom === undefined ? origin.name : expressTicketFrom), last = getStation(corridor,expressTo);
@@ -210,12 +211,13 @@ export function settlement(input) {
       if(isZipang(feeId)){
         if(start.pos<originalStart.pos||last.pos>originalEnd.pos)throw new FareError('原特急券の区間が、入力した割引乗車券の有効区間に含まれるか確認してください。');
         charge=expressFee(distance(corridor,last.name),person);chargeLines=[{label:`区間外 ${last.name}〜長万部（通常料金）`,value:charge}];chargeMethod='ジパングの区間外：特急料金を別途';
-        fullCharge=null;oldCharge=null;
+        fullCharge=null;oldCharge=null;chargeRule='zipang';
       }else{
         // 第252条7・8項。同一列車の実乗区間料金と既収料金を比較。第249条の100km区分は適用しない。
         charge = Math.max(0,fullCharge-oldCharge);
         chargeLines = [{label:`${start.name}〜長万部`,value:fullCharge},{label:`原券 ${start.name}〜${last.name}`,value:oldCharge,subtract:true}];
         chargeMethod='通常特急券：原券発駅からの料金差額';
+        chargeRule='express';
       }
     } else throw new FareError('特急券の状態を選択してください。');
   }
@@ -224,5 +226,5 @@ export function settlement(input) {
   if (calculationFrom === '新千歳空港') notes.push(`空港加算運賃${person === 'child' ? 10 : 20}円を各該当区間に含みます。`);
   if(discount.id!=='none')notes.push(`${discount.label}。表示は選択した1人分。原券の有効性・証明書・同行等の適用条件を確認済みとして計算。`);
   if(['student','disability_single','disability_companion'].includes(discount.id))notes.push('学割・身障割は普通乗車券の割引です。北斗の特急料金には適用しません。');
-  return {base,charge,total:base+charge,fullFare,fullDistance,fareDistance:fareDistance(corridor,calculationFrom),originalFare,originalDistance,method,rule,explanation,fullCharge,oldCharge,lines,chargeLines,chargeMethod,notes,boarding:actual.name,calculationFrom,expressOrigin,person,type,discount:discount.id};
+  return {base,charge,total:base+charge,fullFare,fullDistance,fareDistance:fareDistance(corridor,calculationFrom),originalFare,originalDistance,method,rule,explanation,fareRule,fullCharge,oldCharge,lines,chargeLines,chargeMethod,chargeRule,notes,boarding:actual.name,calculationFrom,expressOrigin,person,type,discount:discount.id};
 }

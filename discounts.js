@@ -3,8 +3,8 @@ export const DISCOUNTS = [
   {id:'student',label:'学割（運賃2割引）',percent:20,minKm:101,adult:true},
   {id:'disability_companion',label:'身障 第1種・本人と介護者が同行',percent:50},
   {id:'disability_single',label:'身障 第1種・第2種の本人単独',percent:50,minKm:101},
-  {id:'zip20',label:'ジパング 2割引',percent:20,minKm:101,adult:true,product:true},
-  {id:'zip30',label:'ジパング 3割引',percent:30,minKm:101,adult:true,product:true},
+  {id:'zip20',label:'ジパング（全国割引）2割引',percent:20,minKm:101,adult:true,product:true},
+  {id:'zip30',label:'ジパング（全国割引）3割引',percent:30,minKm:101,adult:true,product:true},
   {id:'tokudane',label:'特急トクだ値（区間外は別途）',percent:0,product:true}
 ];
 export const isZipang = id => ['zip20','zip30'].includes(id);

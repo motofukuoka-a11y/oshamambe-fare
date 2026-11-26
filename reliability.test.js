@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import { CORRIDORS, META } from './data.js?v=1.3.0';
-import {settlement,journeyFare,parseAmount,extensionRule} from './calculator.js?v=1.3.0';
-import {stationMatches,resolveStation,normalizeStation} from './station-picker.js?v=1.3.0';
+import { CORRIDORS, META } from './data.js?v=1.3.1';
+import {settlement,journeyFare,parseAmount,extensionRule} from './calculator.js?v=1.3.1';
+import {stationMatches,resolveStation,normalizeStation} from './station-picker.js?v=1.3.1';
 
 test('金額式の券面発駅が列車乗車駅と異なる乗継',()=>{
   const r=settlement({corridor:'hakodate',boarding:'森',type:'amount',ticketFrom:'函館',paid:'1210'});

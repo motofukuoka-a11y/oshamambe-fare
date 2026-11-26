@@ -70,6 +70,24 @@ test('ジパング乗車券と通常特急券を混同せず通常券は発駅�
   const r=settlement({...x,expressDiscount:'none'});assert.equal(r.base,1040);assert.equal(r.charge,220);assert.equal(r.total,1260);assert.match(r.chargeMethod,/原券発駅/);
   assert.equal(settlement({...x,expressDiscount:'zip30'}).total,2200);
 });
+test('乗車券が長万部まで有効でもジパング特急券の区間外料金は別途',()=>{
+  for(const discount of ['zip20','zip30']){
+    const r=settlement({corridor:'sapporo',boarding:'札幌',type:'section',ticketFrom:'札幌',ticketTo:'長万部',discount,discountConfirmed:true,express:true,expressTicket:'extend',expressTo:'洞爺',expressDiscount:discount});
+    assert.equal(r.base,0);assert.equal(r.charge,1160);assert.equal(r.total,1160);
+    assert.equal(r.fullCharge,null);assert.equal(r.oldCharge,null);assert.equal(r.fareRule,'');assert.equal(r.chargeRule,'zipang');
+  }
+});
+test('同一の原券区間でも通常券・ジパング・トクだ値を商品条件で区別する',()=>{
+  const x={corridor:'sapporo',boarding:'札幌',type:'section',ticketFrom:'札幌',ticketTo:'洞爺',express:true,expressTicket:'extend',expressTo:'洞爺',discountConfirmed:true};
+  for(const [discount,charge,total,fareRule,chargeRule]of [['none',220,1260,'ordinary','express'],['zip20',1160,2200,'zipang','zipang'],['zip30',1160,2200,'zipang','zipang'],['tokudane',1160,2200,'tokudane','tokudane']]){
+    const r=settlement({...x,discount,expressDiscount:discount.startsWith('zip')?discount:'none',tokudaneUse:'same'});
+    assert.equal(r.base,1040);assert.equal(r.charge,charge);assert.equal(r.total,total);
+    assert.equal(r.fareRule,fareRule);assert.equal(r.chargeRule,chargeRule);
+  }
+});
+test('ジパング料金券の原区間が原割引乗車券に含まれない場合は停止',()=>{
+  assert.throws(()=>settlement({corridor:'sapporo',boarding:'札幌',type:'section',ticketFrom:'札幌',ticketTo:'洞爺',discount:'zip30',discountConfirmed:true,express:true,expressTicket:'extend',expressTo:'長万部',expressDiscount:'zip30'}),/有効区間/);
+});
 test('ジパング除外日・新条件開始日・実在日を検証',()=>{
   for(const d of ['2026-01-06','2026-04-27','2026-05-06','2026-08-10','2026-08-19','2026-12-28']){
     if(d>='2026-03-14'){assert.equal(zipangDate(d),true);assert.throws(()=>settlement(input({discount:'zip30',travelDate:d})));}
