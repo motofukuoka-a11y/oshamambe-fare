@@ -5,9 +5,12 @@ export const DISCOUNTS = [
   {id:'disability_single',label:'身障 第1種・第2種の本人単独',percent:50,minKm:101},
   {id:'zip20',label:'ジパング（全国割引）2割引',percent:20,minKm:101,adult:true,product:true},
   {id:'zip30',label:'ジパング（全国割引）3割引',percent:30,minKm:101,adult:true,product:true},
+  {id:'otona30',label:'大休ジパング（東日本・北海道）3割引',percent:30,minKm:101,adult:true,product:true},
   {id:'tokudane',label:'特急トクだ値（区間外は別途）',percent:0,product:true}
 ];
 export const isZipang = id => ['zip20','zip30'].includes(id);
+export const isOtona = id => id==='otona30';
+export const isMemberDiscount = id => isZipang(id)||isOtona(id);
 export function discountRule(id='none') {
   const rule=DISCOUNTS.find(r=>r.id===id);
   if(!rule)throw new Error('割引・商品の種類を確認してください。');
@@ -32,7 +35,7 @@ export function verifyDiscount(rule,{person,distance,confirmed,date,newTicket=fa
   if(confirmed!==true)throw new Error('券面・証明書・同行など、選択した割引の適用条件を確認してください。');
   if(rule.adult && person!=='adult')throw new Error('学割・ジパングは「おとな」で入力してください。');
   if(rule.minKm && Math.ceil(distance/10)<rule.minKm)throw new Error(`${rule.label}の片道101km以上の条件を満たしません。${newTicket?'今回の乗車区間':'原券の発着駅'}・割引種別を確認してください。`);
-  if(isZipang(rule.id)&&newTicket&&zipangDate(date))throw new Error('入力日はジパングの割引除外日です。割引を適用した新規発売としては計算できません。');
+  if(isMemberDiscount(rule.id)&&newTicket&&zipangDate(date))throw new Error(`入力日は${rule.label}の割引除外日です。割引を適用した新規発売としては計算できません。`);
 }
 export function newDiscountState() {
   return {discount:'none',discountConfirmed:false,travelDate:new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Tokyo'}),overrunDiscount:'',expressDiscount:'none',expressDiscountConfirmed:false,tokudaneUse:'same'};

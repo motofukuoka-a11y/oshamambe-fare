@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FARES,CORRIDORS } from './data.js?v=1.3.1';
+import { FARES,CORRIDORS } from './data.js?v=1.4.0';
 import { fare,expressFee,childAmount,journeyFare,distance,settlement,extensionRule,parseAmount } from './calculator.js';
 // 利用者提供の2026年3月更新表に記載された公示運賃・料金の照合値。
 const reference={

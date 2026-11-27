@@ -15,6 +15,27 @@ export function stationMatches(stations,input,limit=8) {
 }
 export function mountStationPicker(input,stations,onChange) {
   const source=()=>typeof stations==='function'?stations():stations;
+  // タッチ端末ではOS標準の選択欄を使い、キーボード・blurで候補が消える競合を避ける。
+  if (matchMedia('(max-width:700px), (pointer:coarse)').matches) {
+    const initial=input.value,select=document.createElement('select');
+    select.id=input.id;select.className='native-station';select.setAttribute('data-station-input','');
+    const refresh=(value=select.value)=>{
+      const available=source(),station=resolveStation(available,value);
+      const selected=station?(normalizeStation(value)==='札幌市内'?'札幌市内':station.name):value;
+      const signature=JSON.stringify([available.map(s=>s.name),selected]);
+      if(select.dataset.choices===signature)return;
+      select.dataset.choices=signature;select.replaceChildren(new Option(available.length?'駅を選択':'先に発駅を選択',''));
+      if(selected&&!station){const invalid=new Option(`${selected}（区間を確認）`,selected);invalid.disabled=true;select.add(invalid);}
+      if(selected==='札幌市内')select.add(new Option('札幌市内',selected));
+      for(const s of available)select.add(new Option(s.name,s.name));
+      select.value=selected;
+      if(selected&&!station)select.setAttribute('aria-invalid','true');else select.removeAttribute('aria-invalid');
+    };
+    input.replaceWith(select);refresh(initial);
+    select.addEventListener('focus',()=>refresh());
+    select.addEventListener('change',()=>{select.removeAttribute('aria-invalid');onChange(select.value);});
+    return {refresh};
+  }
   const list = document.createElement('div'); list.className = 'station-options'; list.id = `${input.id}-options`; list.role = 'listbox'; list.hidden = true;
   input.parentElement.append(list); input.role = 'combobox'; input.setAttribute('aria-autocomplete','list'); input.setAttribute('aria-controls',list.id); input.setAttribute('aria-expanded','false'); input.autocomplete = 'off';
   const toggle=document.createElement('button');toggle.type='button';toggle.className='station-toggle';toggle.tabIndex=-1;
@@ -43,4 +64,5 @@ export function mountStationPicker(input,stations,onChange) {
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); if (list.hidden) open(true); if (!candidates.length) return; active = e.key === 'ArrowDown' ? (active+1)%candidates.length : active<0?candidates.length-1:(active-1+candidates.length)%candidates.length; paintActive(); list.children[active].scrollIntoView({block:'nearest'}); }
     else if (e.key === 'Enter' && active >= 0 && !list.hidden) { e.preventDefault(); choose(candidates[active]); }
   });
+  return {refresh:close};
 }

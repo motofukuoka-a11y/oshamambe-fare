@@ -6,6 +6,49 @@ import {discountAmount,zipangDate,verifyDiscount,discountRule} from './discounts
 const date='2026-11-27';
 const input=(extra={})=>({corridor:'hakodate',boarding:'函館',discountConfirmed:true,travelDate:date,...extra});
 const section=(extra={})=>input({type:'section',ticketFrom:'函館',ticketTo:'国縫',...extra});
+const otona=(extra={})=>({corridor:'sapporo',boarding:'札幌',type:'section',ticketFrom:'札幌',ticketTo:'洞爺',discount:'otona30',discountConfirmed:true,travelDate:date,express:true,expressTicket:'extend',expressTicketFrom:'札幌',expressTo:'洞爺',expressDiscount:'otona30',...extra});
+
+test('大休ジパング新規は運賃・特急料金を個別に3割引',()=>{
+  const r=settlement(input({discount:'otona30',express:true,expressDiscount:'otona30'}));
+  assert.equal(r.base,1770);assert.equal(r.charge,1650);assert.equal(r.total,3420);
+});
+test('大休ジパングの乗車券・特急券乗越は無割引区間外を別途',()=>{
+  const r=settlement(otona());assert.equal(r.base,1040);assert.equal(r.charge,1160);assert.equal(r.total,2200);
+  assert.equal(r.fareRule,'otona');assert.equal(r.chargeRule,'otona');assert.equal(r.fullCharge,null);assert.equal(r.oldCharge,null);
+});
+test('大休乗車券と通常特急券の混在では通常料金差額を計算',()=>{
+  const r=settlement(otona({expressDiscount:'none'}));assert.equal(r.base,1040);assert.equal(r.charge,220);assert.equal(r.total,1260);
+  assert.equal(r.fareRule,'otona');assert.equal(r.chargeRule,'express');
+});
+test('大休乗車券が長万部まで有効でも大休特急券の区間外料金は1160円',()=>{
+  const r=settlement(otona({ticketTo:'長万部'}));assert.equal(r.base,0);assert.equal(r.charge,1160);assert.equal(r.total,1160);
+});
+test('大休料金券の別購入はカード等の確認と原大休乗車券区間内が必要',()=>{
+  const x=otona({ticketTo:'長万部',expressTicket:'none'});
+  for(const confirmed of [undefined,false,'true'])assert.throws(()=>settlement({...x,expressDiscountConfirmed:confirmed}),/カード/);
+  const r=settlement({...x,expressDiscountConfirmed:true});assert.equal(r.base,0);assert.equal(r.charge,2060);
+  assert.throws(()=>settlement(otona({expressTicket:'none',expressDiscountConfirmed:true})),/全区間/);
+});
+test('大休料金券と全国ジパング・身障券を同制度と推測しない',()=>{
+  for(const discount of ['none','zip20','zip30','disability_companion'])assert.throws(()=>settlement(otona({discount})),/別制度/);
+  for(const expressDiscount of ['zip20','zip30'])assert.throws(()=>settlement(otona({expressDiscount})),/組合せ/);
+  assert.throws(()=>settlement(otona({expressDiscount:undefined})),/推定しません/);
+});
+test('大休ジパングは本人・カード条件の確認と片道101km以上が必須',()=>{
+  for(const x of [{person:'child'},{discountConfirmed:false},{discountConfirmed:'true'}])assert.throws(()=>settlement(otona(x)));
+  assert.throws(()=>settlement(input({discount:'otona30',boarding:'八雲'})),/101km/);
+  assert.throws(()=>settlement(input({discount:'otona30',type:'amount',paid:'310'})),/発着駅/);
+});
+test('大休の新規発売は除外日を判定し、有効な原券の区間外計算とは分ける',()=>{
+  for(const travelDate of ['2026-12-28','2027-01-06','2026-04-27','2026-08-10'])assert.throws(()=>settlement(input({discount:'otona30',travelDate})),/除外日/);
+  for(const travelDate of ['2026-12-27','2027-01-07'])assert.equal(settlement(input({discount:'otona30',travelDate})).base,1770);
+  assert.equal(settlement(otona({travelDate:'2026-12-28'})).total,2200);
+});
+test('大休料金券自体が100km以内でも原割引乗車券の区間内なら扱える',()=>{
+  const r=settlement(input({type:'section',ticketFrom:'函館',ticketTo:'長万部',discount:'otona30',express:true,expressTicket:'extend',expressTo:'森',expressDiscount:'otona30'}));
+  assert.equal(r.base,0);assert.equal(r.charge,1680);assert.equal(r.chargeRule,'otona');
+  assert.throws(()=>settlement(otona({expressTo:'長万部'})),/有効区間/);
+});
 
 test('割引後の10円未満は切捨て。過去の切上げ処理を流用しない',()=>{
   assert.equal(discountAmount(2530,20),2020);assert.equal(discountAmount(2530,30),1770);
